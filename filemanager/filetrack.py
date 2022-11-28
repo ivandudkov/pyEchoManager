@@ -1,5 +1,28 @@
-import os
 import abc
+import os
+
+
+class Filetrack(metaclass=abc.ABCMeta):
+    pass
+    
+class PDSFileTrack(Filetrack):
+    """bla bla bla"""
+    
+    def __init__(self):
+        self.project = ''
+        self.fname = ''
+        self.fext = '.pds'
+        self.fgpt_ext = '.gpt'
+        self.fdir = ''
+        self.rel_path = ''
+        self.projection = ''
+        self.tr_time = []  # Excel time (days since January 01, 1900)
+        self.tr_x = []  # X, UTM34N
+        self.tr_y = []  # Y, UTM34N
+        self.tr_sv = []  # SoundSpeedSensor Measurements
+        self.tr_depth = []  # Nadir Depth... Depth below SRF
+        self.tr_heading = []  # Heading
+
 
 def read_filetrack_csv(track_path, projection):
     PDS_file_tracks = []
@@ -21,10 +44,11 @@ def read_filetrack_csv(track_path, projection):
 
             elif line == '' or line.startswith('Time'):
                 pass
+            
             else:
                 line_content = line.split(',')
+                count = 0
                 try:
-                    count = 0
                     for cont in line_content:
                         float(cont)
                         count += 1
@@ -40,24 +64,3 @@ def read_filetrack_csv(track_path, projection):
                     f_tr.tr_heading.append(float(line_content[5]))
                 
         return PDS_file_tracks
-
-class Filetrack(metaclass=abc.ABCMeta):
-    pass
-    
-class PDSFileTrack(Filetrack):
-    """bla bla bla"""
-    
-    def __init__(self):
-        self.project = None
-        self.fname = None
-        self.fext = '.pds'
-        self.fgpt_ext = '.gpt'
-        self.fdir = None
-        self.rel_path = None
-        self.projection = None
-        self.tr_time = []  # Excel time (days since January 01, 1900)
-        self.tr_x = []  # X, UTM34N
-        self.tr_y = []  # Y, UTM34N
-        self.tr_sv = []  # SoundSpeedSensor Measurements
-        self.tr_depth = []  # Nadir Depth... Depth below SRF
-        self.tr_heading = []  # Heading

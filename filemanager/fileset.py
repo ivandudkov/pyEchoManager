@@ -4,7 +4,7 @@ import shutil
 import time
 from dataclasses import dataclass
 
-from _checks import Checks
+from filemanager._checks import Checks
 
 
 class Fileset(metaclass=abc.ABCMeta):
@@ -116,7 +116,7 @@ class PDSFileset(Fileset):
 
         print(f"{matched_count} of {len(self.files)} files matched")
 
-    def addfiles_fromlist(self, path, overwrite=True):
+    def addfiles_fromlist(self, path, overwrite=True) -> None:
         """
         path: path to csv table with filenames
         """
@@ -160,25 +160,25 @@ class PDSFileset(Fileset):
                 )
                 self._files.append(pds_file)
 
-    def deletefiles(self, filenames):
+    def deletefiles(self, filenames) -> None:
         """
         filenames - a list with filenames
         """
         print('deletefiles functions if not implemented')
         pass
 
-    def changedatadir(self, datadirname: str):
+    def changedatadir(self, datadirname: str) -> None:
         for file_obj in self.files:
             file_obj.rel_path = os.path.join(
                 datadirname, 
                 os.path.basename(file_obj.rel_path)
                 )
 
-    def deleteunmached(self):
+    def deleteunmached(self) -> None:
         self._files = [item for item in self._files if item.matched]
         
 
-    def copyfiles(self, path):
+    def copyfiles(self, path) -> None:
         """
         path - a path copy to
         """
@@ -201,7 +201,7 @@ class PDSFileset(Fileset):
             except:
                 print(f'Path is not correct or {file_obj.name} is not exists')
 
-    def movefiles(self, path):
+    def movefiles(self, path) -> None:
         """
         path - a path move to
         """
@@ -226,7 +226,7 @@ class PDSFileset(Fileset):
             except:
                 print(f'Path is not correct or {file_obj.name} is not exists')
 
-    def readfileset(self, path, overwrite=True):
+    def readfileset(self, path, overwrite=True) -> None:
         Checks.check_path(path)
         basename = os.path.basename(path)
         self._name = os.path.splitext(basename)[0]
@@ -275,7 +275,7 @@ class PDSFileset(Fileset):
             self._files.append(pds_file)
 
 
-    def savefileset(self, filename, dirpath=os.getcwd()):
+    def savefileset(self, filename, dirpath=os.getcwd()) -> None:
         with open(os.path.join(dirpath, filename), 'w') as file:
             file.write('[Files]\n')
             for num, file_obj in enumerate(self.files):
@@ -283,6 +283,14 @@ class PDSFileset(Fileset):
                     f'File({num}) = {file_obj.rel_path}\n'
                 )
             file.write('\n')
+            
+    def savefileset_ascsv(self, filename, dirpath=os.getcwd()) -> None:
+        with open(os.path.join(dirpath, filename), 'w') as file:
+            file.write('Fname,SVP,Fileset,ProcStatus,ProcBy,dtm,bsm,datetime\n')
+            for num, file_obj in enumerate(self.files):
+                file.write(
+                    f'{file_obj.name},,{self.name},,,,,\n'
+                )
 
     def get_size(self):
 

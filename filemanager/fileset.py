@@ -4,12 +4,13 @@ import shutil
 import time
 from dataclasses import dataclass
 
+
 from filemanager._checks import Checks
 
 
 class Fileset(metaclass=abc.ABCMeta):
     """Bla Bla Bla"""
-
+    
     @property
     @abc.abstractmethod
     def name(self) -> str:

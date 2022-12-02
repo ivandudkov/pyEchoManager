@@ -90,7 +90,7 @@ class PDSFileset(Fileset):
     def files(self):
         return self._files
 
-    def matchfiles(self, path):
+    def matchfiles(self, path, verbose=False):
         """path - path to file storage folder"""
         pds_files = [
             (item.name, item.path) for item in os.scandir(path) 
@@ -115,7 +115,8 @@ class PDSFileset(Fileset):
                     matched_count += 1
         self.matched = matched_count
 
-        print(f"{matched_count} of {len(self.files)} files matched")
+        if verbose:
+            print(f"{matched_count} of {len(self.files)} files matched")
 
     def addfiles_fromlist(self, path, overwrite=True) -> None:
         """
@@ -179,7 +180,7 @@ class PDSFileset(Fileset):
         self._files = [item for item in self._files if item.matched]
         
 
-    def copyfiles(self, path) -> None:
+    def copyfiles(self, path, verbose=False) -> None:
         """
         path - a path copy to
         """
@@ -196,13 +197,14 @@ class PDSFileset(Fileset):
                     raise RuntimeError()
                 shutil.copy(file_obj.abs_path, path)
                 files_copied += 1 
-                print(f'Copied {files_copied} of {files_overall} files')
+                if verbose:
+                    print(f'Copied {files_copied} of {files_overall} files')
             except RuntimeError:
                 print(f'File {file_obj.name} is not matched')
             except:
                 print(f'Path is not correct or {file_obj.name} is not exists')
 
-    def movefiles(self, path) -> None:
+    def movefiles(self, path, verbose=False) -> None:
         """
         path - a path move to
         """
@@ -221,7 +223,8 @@ class PDSFileset(Fileset):
                 # file_obj.abs_path = os.path.join(path, file_obj.name + file_obj.ext)
                 file_obj.matched = False
                 files_copied += 1 
-                print(f'Moved {files_copied} of {files_overall} files')
+                if verbose:
+                    print(f'Moved {files_copied} of {files_overall} files')
             except RuntimeError:
                 print(f'File {file_obj.name} is not matched')
             except:

@@ -284,7 +284,7 @@ class PDSFileset(Fileset):
                     f'File({num}) = {file_obj.rel_path}\n'
                 )
             file.write('\n')
-            
+
     def savefileset_ascsv(self, filename, dirpath=os.getcwd()) -> None:
         with open(os.path.join(dirpath, filename), 'w') as file:
             file.write('Fname,SVP,Fileset,ProcStatus,ProcBy,dtm,bsm,datetime\n')

@@ -150,7 +150,7 @@ class AssignSvp:
             
             for idx, pds_file in enumerate(self.pds_files):
                 bestmatch_svp = np.bincount(pds_file.matched_svp).argmax()
-                svp_name = self.svp_profiles[bestmatch_svp].name
+                svp_name = f'{self.svp_profiles[bestmatch_svp].sn_type}_{self.svp_profiles[bestmatch_svp].name}'
                 pds_name = pds_file.name
                 file.write(f'{pds_name},{svp_name}\n')
     
@@ -166,7 +166,7 @@ class AssignSvp:
                 pds_name = line_content[1]
                 svp_name = line_content[2].strip('"')
                 
-                if svp_name is '':
+                if svp_name == '':
                     svp_name = 'None'
                 
                 if svp_name in svp_dict.keys():

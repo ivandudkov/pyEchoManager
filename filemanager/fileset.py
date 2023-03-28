@@ -141,6 +141,9 @@ class PDSFileset(Fileset):
         for filename in filenames:
             self.addfile(filename)
 
+    def addfiles(self, filenames):
+        for filename in filenames:
+            self.addfile(filename)
     def addfiles_fromlist(self, path, overwrite=True) -> None:
         """
         path: path to csv table with filenames

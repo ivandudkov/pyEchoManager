@@ -90,6 +90,9 @@ class PDSFileset(Fileset):
     def files(self):
         return self._files
 
+    def setname(self, name):
+        self._name = name
+
     def matchfiles(self, path, verbose=False):
         """path - path to file storage folder"""
         pds_files = [
@@ -117,6 +120,26 @@ class PDSFileset(Fileset):
 
         if verbose:
             print(f"{matched_count} of {len(self.files)} files matched")
+
+    def addfile(self, filename):
+        pds_file = File(
+                    name=filename,
+                    ext=self.extension,
+                    rel_path=os.path.join('LogData', filename),
+                    abs_path='',
+                    matched=False
+                )
+
+        self._files = [
+                        item for item in self._files 
+                        if item.name != filename
+                        ]
+
+        self._files.append(pds_file)
+
+    def addfiles(self, filenames):
+        for filename in filenames:
+            self.addfile(filename)
 
     def addfiles_fromlist(self, path, overwrite=True) -> None:
         """
@@ -162,12 +185,20 @@ class PDSFileset(Fileset):
                 )
                 self._files.append(pds_file)
 
+    def deletefile(self, filename):
+        """Filename - str"""
+        self._files = [
+                item for item in self._files 
+                if item.name != filename
+                ]
+
     def deletefiles(self, filenames) -> None:
         """
         filenames - a list with filenames
         """
-        print('deletefiles functions if not implemented')
-        pass
+        
+        for filename in filenames:
+            self.deletefile(filename)
 
     def changedatadir(self, datadirname: str) -> None:
         for file_obj in self.files:
@@ -279,8 +310,8 @@ class PDSFileset(Fileset):
             self._files.append(pds_file)
 
 
-    def savefileset(self, filename, dirpath=os.getcwd()) -> None:
-        with open(os.path.join(dirpath, filename), 'w') as file:
+    def savefileset(self, dirpath=os.getcwd()) -> None:
+        with open(os.path.join(dirpath, self.name + '.sub'), 'w') as file:
             file.write('[Files]\n')
             for num, file_obj in enumerate(self.files):
                 file.write(
@@ -305,4 +336,85 @@ class PDSFileset(Fileset):
             except:
                 print('Size failed')
         return size
+
+    def get_filenames(self):
+        filenames_list = []
+
+        for file in self._files:
+            filenames_list.append(file.name)
         
+        return filenames_list
+        
+        
+    @classmethod
+    def readfilesets(fs_list):
+        """
+        Быстрый способ инициализировать файлсеты из списка fs_list
+        fs_list должен включать абсолютные пути до файлсетов .sub
+        """
+        fs_objs = []
+        
+        for fs in fs_list:
+            fileset = PDSFileset()
+            fileset.readfileset(fs)
+            fs_objs.append(fileset)
+        
+        return fs_objs
+
+    @classmethod
+    def difference(fs_obj1, fs_obj2):
+        """
+        Если в fs_obj1 есть файлы из fs_obj2,
+        то эти файлы будут убраны из fs_obj1
+        
+        Профильтрованный объект файлсета diff_fs_objs
+        будет возвращен
+        """
+        diff_fs_obj = fs_obj1
+
+        for file2 in fs_obj2.files:
+            diff_fs_obj.deletefile(file2.name)
+
+        return diff_fs_obj
+
+
+    @classmethod
+    def difference_list(fs_objs1, fs_objs2):
+        """
+        если в каком-то файлсете из fs_objs1 есть данные из какого-то
+        файлсета fs_objs2, то эти файлы будут убраны из файлсета fs_objs1.
+
+        Лист diff_fs_objs включающий в себя профильтрованные файлсееты будет возвращен
+        """
+        diff_fs_objs = fs_objs1
+
+        for fs_obj2 in fs_objs2:
+            for file2 in fs_objs2.files:
+                for diff_fs_obj in diff_fs_objs:
+                    diff_fs_obj.deletefile(file2.name)
+        
+        return diff_fs_objs
+
+    @classmethod
+    def match_fs(pds_files, fs_objs):
+        """
+        Если в листе с абсолютными путями pds_files полностью присутствуют 
+        все файлы из файлсета/тов из fs_objs, то файлсет/ы
+        будут возвращены в новом списке fs_objs_filt
+        """
+        fs_objs_filt = []
+
+        for fs in fs_objs:
+            matched_files = []
+            filename_list = fs.get_filenames()
+
+            for pds_file in pds_files:
+                if pds_file in filename_list:
+                    matched_files.append(pds_file)
+                else:
+                    pass
+
+            if len(matched_files) == len(fs.files):
+                fs_objs_filt.append(fs)
+
+        return fs_objs_filt

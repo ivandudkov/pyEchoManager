@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Ping:
-    
+
     uid: int
     filename: str
     ping_number: int

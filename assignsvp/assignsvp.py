@@ -26,9 +26,15 @@ class PDSfileXY:
     name: str
     timestamp: float
     proj: str
-    X: list = field(default_factory=list)
-    Y: list = field(default_factory=list)
-    matched_svp: list = field(default_factory=list)
+    x_coords: list = field(default_factory=list)
+    y_coords: list = field(default_factory=list)
+    posix_times: list = field(default_factory=list)
+    ping_numbers: list = field(default_factory=list)
+    matched_svps: list = field(default_factory=list)
+    ping_list: list = field(default_factory=list)
+
+
+
 
 
 
@@ -65,7 +71,48 @@ class AssignSvp:
                                         Y=float(line_content[6]),
                                         proj='wgs84utm34n')
                 self.svp_profiles.append(svp_obj)
+    
+    @classmethod
+    def pdscsv_to_appropriatecsv(input, i_header, output):
+    
+        if os.path.exists(input):
+            pass
+        else:
+            print(RuntimeError('Either path is not correct of file does not exists'))
+
+        with open(input, 'r') as input_f:
+            file_content = input_f.read().splitlines()
+            
+            for num, line in enumerate(file_content):
+                if line.startswith('Input file:'):
+                    pdsfile_path = line[12:]
+                    fname = os.path.splitext(os.path.split(pdsfile_path)[1])[0]
+                    fdir = os.path.split(os.path.split(pdsfile_path)[0])[1]
+                    project = os.path.split(os.path.split(os.path.split(pdsfile_path)[0])[0])[1]
+                    frel_path = os.path.join(fdir, fname)
+
+                elif line == '' or line.startswith('Time') or line.startswith('PDS2000 Export Utility'):
+                    pass
                 
+                else:
+                    line_content = line.split(',')
+                    count = 0
+                    try:
+                        for cont in line_content:
+                            float(cont)
+                            count += 1
+                    except:
+                        print(f'error at line {num}. {header[count]}: {line_content[count]}')
+                    else:
+                        count = 0
+                        f_tr.tr_time.append(float(line_content[0]))
+                        f_tr.tr_x.append(float(line_content[1]))
+                        f_tr.tr_y.append(float(line_content[2]))
+                        f_tr.tr_sv.append(float(line_content[3]))
+                        f_tr.tr_depth.append(float(line_content[4]))
+                        f_tr.tr_heading.append(float(line_content[5]))
+
+
     def read_pdsmeta(self, path_pdsmeta):
         if not len(self.pds_files):
             self.pds_files = []

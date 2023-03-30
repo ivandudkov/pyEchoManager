@@ -22,14 +22,18 @@ class PDSFileTrack(Filetrack):
         self.tr_sv = []  # SoundSpeedSensor Measurements
         self.tr_depth = []  # Nadir Depth... Depth below SRF
         self.tr_heading = []  # Heading
+        self.header = {}
 
+@classmethod
+def set_up_header():
+    pass
 
-def read_filetrack_csv(track_path, projection):
+def read_filetrack_csv(input, i_header, projection):
     PDS_file_tracks = []
 
-    with open(track_path, 'r') as f:
+    with open(input, 'r') as f:
         file_content = f.read().splitlines()
-        header = ['time', 'x', 'y', 'sv', 'depth', 'heading']
+        i_header = i_header
         for num, line in enumerate(file_content):
             if line.startswith('PDS2000 Export Utility'):
                 f_tr = PDSFileTrack()
@@ -44,7 +48,7 @@ def read_filetrack_csv(track_path, projection):
 
             elif line == '' or line.startswith('Time'):
                 pass
-            
+
             else:
                 line_content = line.split(',')
                 count = 0
@@ -53,7 +57,7 @@ def read_filetrack_csv(track_path, projection):
                         float(cont)
                         count += 1
                 except:
-                    print(f'error at line {num}. {header[count]}: {line_content[count]}')
+                    print(f'error at line {num}. {i_header[count]}: {line_content[count]}')
                 else:
                     count = 0
                     f_tr.tr_time.append(float(line_content[0]))

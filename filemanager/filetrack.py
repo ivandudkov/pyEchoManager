@@ -15,12 +15,14 @@ class PDSFileTrack(Filetrack):
         self.fgpt_ext = '.gpt'
         self.fdir = ''
         self.rel_path = ''
-        self.projection = ''
-        self.tr_time = []  # Excel time (days since January 01, 1900)
-        self.tr_x = []  # X, UTM34N
-        self.tr_y = []  # Y, UTM34N
+        self.ESPG_code = None
+        self.tr_time = []  # POSIX time
+        self.tr_x = []  # X
+        self.tr_y = []  # Y
         self.tr_sv = []  # SoundSpeedSensor Measurements
-        self.tr_depth = []  # Nadir Depth... Depth below SRF
+        self.tr_depth = []  # Transducer depth (below VRF)
+        self.dbt_depth = []
+        self.nadir_depth = []
         self.tr_heading = []  # Heading
         self.header = {}
 

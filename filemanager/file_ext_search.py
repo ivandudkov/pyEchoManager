@@ -10,10 +10,10 @@ import os
 # August 2021
 # Author: Ivan Dudkov
 # Affiliations:
-# P.P Shirshov's Institute of Oceanography, Atlantic Branch, Kaliningrad, Russia. (2018 - ????)
+# P.P Shirshov's Institute of Oceanography, Atlantic Branch, Kaliningrad, Russia. (2018 - 2023)
 # Center for Coastal and Ocean Mapping, University of New Hampshire. Durham, USA. (2020-2021)
 
-def file_ext_search(extension: str, path=os.getcwd(), recursive=False) -> list:
+def file_ext_search(extension: str, path=os.getcwd(), search_up=False, recursive=False) -> list:
     """
     extension
     path
@@ -45,7 +45,7 @@ def file_ext_search(extension: str, path=os.getcwd(), recursive=False) -> list:
                         count += 1
 
     count = 0
-    if len(paths) == 0:
+    if len(paths) == 0 and search_up == True:
         os.chdir(os.path.dirname(path))
         path_up = os.getcwd()
         print("Searching was unsuccessful. Trying to search in one directory up:\n%s" % path_up)
@@ -56,4 +56,7 @@ def file_ext_search(extension: str, path=os.getcwd(), recursive=False) -> list:
                 if fextension == extension:
                     paths.append(os.path.abspath(os.path.join(dirpath, filename)))
                     count += 1
+    else:
+        raise RuntimeError(f'Searching was unsuccessful. There are no {extension} files in {path} folder')
+    
     return paths

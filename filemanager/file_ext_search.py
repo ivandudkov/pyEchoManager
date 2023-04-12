@@ -56,7 +56,10 @@ def file_ext_search(extension: str, path=os.getcwd(), search_up=False, recursive
                 if fextension == extension:
                     paths.append(os.path.abspath(os.path.join(dirpath, filename)))
                     count += 1
-    else:
+    elif len(paths) == 0 and search_up == False:
+        raise RuntimeError(f'Searching was unsuccessful. There are no {extension} files in {path} folder')
+    
+    if len(paths) == 0:
         raise RuntimeError(f'Searching was unsuccessful. There are no {extension} files in {path} folder')
     
     return paths

@@ -2,6 +2,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
+import re
 
 import numpy as np
 
@@ -24,7 +25,11 @@ class PDSfileXY:
     
     uid: int
     name: str
-    timestamp: float
+    fdir: str
+    ftime: datetime
+    project: str
+    rel_path: str
+    timestamp: float = None
     proj: str
     x_coords: list = field(default_factory=list)
     y_coords: list = field(default_factory=list)
@@ -32,6 +37,9 @@ class PDSfileXY:
     ping_numbers: list = field(default_factory=list)
     matched_svps: list = field(default_factory=list)
     ping_list: list = field(default_factory=list)
+    ssvs: list = field(default_factory=list)
+    nadir_depths: list = field(default_factory=list)
+    heading: list = field(default_factory=list)
 
 class AssignSvp:
     """A class for assigning svp data to pds files"""
@@ -48,6 +56,12 @@ class AssignSvp:
         
         
     def read_svpmeta(self, path_svpmeta):
+        # SVP meta file has to be a CSV file
+        # with a header:
+        # UID,SN_Type,Name,Datetime,StationName,X,Y
+        # where UID - ordered number, SN_Type - SVP probe serial number / name,
+        # Name - SVP file name, Datetime - datetime in 'YYYY-MM-DDTHH:MM:SS' format,
+        # X and Y - cartesian coordinates
         if not len(self.svp_profiles):
             self.svp_profiles = []
         
@@ -68,10 +82,81 @@ class AssignSvp:
                 self.svp_profiles.append(svp_obj)
 
     @classmethod
-    def from_filtrack_obj():
+    def from_filetrack_obj():
         pass
 
+    @staticmethod
+    def read_filetrack_csv(self, input, i_headseq, projection):
+        # if header is 'Time,X,Y,SSV,Nadir,Heading'
+        # i_headseq should be [0,1,2,3,4,5]
+        # if header if 'X,Y,Time,Nadir,SSV,Heading'
+        # i_headseq should be [1,2,0,4,3,5]
+        if not len(self.pds_files):
+            self.pds_files = []
+
+        with open(input, 'r') as f:
+            
+            file_content = f.read().splitlines()
+            
+            header = ['Time', 'X', 'Y', 'SSV', 'Nadir', 'Heading']
+            
+            for num, line in enumerate(file_content):
+                
+                if line.startswith('PDS2000 Export Utility'):
+                    pass
+                
+                elif line.startswith('Input file:'):
+                    file_path = line[12:]
+                    fname = os.path.splitext(os.path.split(file_path)[1])[0]
+                    ftime = datetime.strptime(re.search(r'\d{8}-\d{6}',fname)[0], '%Y%m%d-%H%M%S')
+                    fdir = os.path.split(os.path.split(file_path)[0])[1]
+                    project = os.path.split(os.path.split(os.path.split(file_path)[0])[0])[1]
+                    rel_path = os.path.join(pdsfile_obj.fdir, pdsfile_obj.fname)
+                    
+                    pdsfile_obj = PDSfileXY(uid=int(line_content[0]),
+                                            name=fname,
+                                            fdir=fdir,
+                                            ftime=ftime,
+                                            project=project,
+                                            rel_path=rel_path,
+                                            proj=projection)
+                    
+                    self.pds_files.append(pdsfile_obj)
+
+                elif line == '' or line.startswith('Time'):
+                    pass
+
+                else:
+                    line_content = line.split(',')
+                    count = 0
+                    try:
+                        for cont in line_content:
+                            float(cont)
+                            count += 1
+                    except:
+                        print(f'error at line {num}. {header[i_headseq[count]]}: {line_content[count]}')
+                    else:
+                        count = 0
+                        pdsfile_obj.posix_times.append(float(line_content[i_headseq[0]]))
+                        pdsfile_obj.x_coords.append(float(line_content[i_headseq[1]]))
+                        pdsfile_obj.y_coords.append(float(line_content[i_headseq[2]]))
+                        pdsfile_obj.ssvs.append(float(line_content[i_headseq[3]]))
+                        pdsfile_obj.nadir_depths.append(float(line_content[i_headseq[4]]))
+                        pdsfile_obj.heading.append(float(line_content[i_headseq[5]]))
+
+
+
     def read_pdsmeta(self, path_pdsmeta):
+        """ read pds filetrack csv file
+        csv file has to have next header:
+        fid,Fname,datetime,distance,X,Y
+        datetime format: 2022-06-03T08:37:34
+
+        Parameters
+        ----------
+        path_pdsmeta : _type_
+            _description_
+        """
         if not len(self.pds_files):
             self.pds_files = []
         
@@ -148,7 +233,8 @@ class AssignSvp:
                 
         
     def pick_bestmatch(self, path):
-        
+        # pick bestmatch for entire file
+        # path - path save to
         with open(path, 'w') as file:
             
             file.write('pds_name,svp_name\n')
@@ -161,6 +247,7 @@ class AssignSvp:
     
     @staticmethod
     def fileset_for_each_svp(dirpath, csv_filepath):
+        # csv_filepath should be a file of pick_bestmatch function output
         svp_dict = {}
         
         with open(csv_filepath, 'r') as file:

@@ -1,7 +1,7 @@
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
 import numpy as np
@@ -29,8 +29,8 @@ class PDSfileXY:
     ftime: datetime
     project: str
     rel_path: str
-    timestamp: float = None
     proj: str
+    timestamp: float = None
     x_coords: list = field(default_factory=list)
     y_coords: list = field(default_factory=list)
     posix_times: list = field(default_factory=list)
@@ -85,20 +85,27 @@ class AssignSvp:
     def from_filetrack_obj():
         pass
 
-    @staticmethod
     def read_filetrack_csv(self, input, i_headseq, projection):
         # if header is 'Time,X,Y,SSV,Nadir,Heading'
         # i_headseq should be [0,1,2,3,4,5]
         # if header if 'X,Y,Time,Nadir,SSV,Heading'
         # i_headseq should be [1,2,0,4,3,5]
+        # if you don't have any of 'X,Y,Time,Nadir,SSV,Heading' data
+        # put there -999 index, like if you don't have Heading
+        # i-headseq will be: [1,2,0,4,3,-999]
+        
         if not len(self.pds_files):
             self.pds_files = []
+        
+        header = ['Time', 'X', 'Y', 'SSV', 'Nadir', 'Heading']
+        
+        for idx, h in enumerate(i_headseq):
+            if h == -999:
+                print(f'Warning, there is no {header[idx]} data!')
 
         with open(input, 'r') as f:
             
             file_content = f.read().splitlines()
-            
-            header = ['Time', 'X', 'Y', 'SSV', 'Nadir', 'Heading']
             
             for num, line in enumerate(file_content):
                 
@@ -111,9 +118,9 @@ class AssignSvp:
                     ftime = datetime.strptime(re.search(r'\d{8}-\d{6}',fname)[0], '%Y%m%d-%H%M%S')
                     fdir = os.path.split(os.path.split(file_path)[0])[1]
                     project = os.path.split(os.path.split(os.path.split(file_path)[0])[0])[1]
-                    rel_path = os.path.join(pdsfile_obj.fdir, pdsfile_obj.fname)
+                    rel_path = os.path.join(fdir, fname)
                     
-                    pdsfile_obj = PDSfileXY(uid=int(line_content[0]),
+                    pdsfile_obj = PDSfileXY(uid=int(num),
                                             name=fname,
                                             fdir=fdir,
                                             ftime=ftime,
@@ -137,12 +144,19 @@ class AssignSvp:
                         print(f'error at line {num}. {header[i_headseq[count]]}: {line_content[count]}')
                     else:
                         count = 0
-                        pdsfile_obj.posix_times.append(float(line_content[i_headseq[0]]))
-                        pdsfile_obj.x_coords.append(float(line_content[i_headseq[1]]))
-                        pdsfile_obj.y_coords.append(float(line_content[i_headseq[2]]))
-                        pdsfile_obj.ssvs.append(float(line_content[i_headseq[3]]))
-                        pdsfile_obj.nadir_depths.append(float(line_content[i_headseq[4]]))
-                        pdsfile_obj.heading.append(float(line_content[i_headseq[5]]))
+                        
+                        if i_headseq[0] != -999:
+                            pdsfile_obj.posix_times.append(float(line_content[i_headseq[0]]))
+                        if i_headseq[1] != -999:
+                            pdsfile_obj.x_coords.append(float(line_content[i_headseq[1]]))
+                        if i_headseq[2] != -999:
+                            pdsfile_obj.y_coords.append(float(line_content[i_headseq[2]]))
+                        if i_headseq[3] != -999:
+                            pdsfile_obj.ssvs.append(float(line_content[i_headseq[3]]))
+                        if i_headseq[4] != -999:
+                            pdsfile_obj.nadir_depths.append(float(line_content[i_headseq[4]]))
+                        if i_headseq[5] != -999:
+                            pdsfile_obj.heading.append(float(line_content[i_headseq[5]]))
 
 
 
@@ -217,19 +231,18 @@ class AssignSvp:
             self.svp_array[idx,2] = svp_obj.Y
         
         for pds_obj in self.pds_files:
-            dist_delta = np.empty((len(self.svp_profiles), len(pds_obj.X)))
+            dist_delta = np.empty((len(self.svp_profiles), len(pds_obj.x_coords)))
             time_delta = np.empty((len(self.svp_profiles), 1))
-            val_array = np.empty((len(self.svp_profiles), len(pds_obj.X)))
-                                 
-            time_delta = np.abs(self.svp_array[:,0] - pds_obj.timestamp)
-            time_delta = apply_weights(time_delta, time_weight)
+            val_array = np.empty((len(self.svp_profiles), len(pds_obj.y_coords)))
             
-            for index, (x, y) in enumerate(zip(pds_obj.X, pds_obj.Y)):
+            for index, (timestamp, x, y) in enumerate(zip(pds_obj.posix_times,pds_obj.x_coords, pds_obj.y_coords)):
+                time_delta = np.abs(self.svp_array[:,0] - timestamp)
+                time_delta = apply_weights(time_delta, time_weight)
                 dist_delta[:,index] = np.sqrt((self.svp_array[:,1] - x)**2 + (self.svp_array[:,2] - y)**2)
                 dist_delta[:,index] = apply_weights(dist_delta[:,index], dist_weight)
                 val_array[:, index] = dist_delta[:,index]/np.linalg.norm(dist_delta[:,index]) + time_delta[:]/np.linalg.norm(time_delta[:])
                 bestmatch_svp = np.argmin(val_array[:, index])
-                pds_obj.matched_svp.append(bestmatch_svp)
+                pds_obj.matched_svps.append((timestamp, bestmatch_svp))
                 
         
     def pick_bestmatch(self, path):
@@ -274,8 +287,64 @@ class AssignSvp:
                         f'File({num}) = LogData\\{filename}\n'
                     )
                 file.write('\n')
-                
+    
+    @staticmethod
+    def save_matched_track(pds_files, svp_files, path):
+        
+        with open(path, 'w') as f:
             
+            f.write('uid,fname,ftime,timestamp,isodatetime,x_coord,y_coord,svp_idx,svp_timestamp,svp_name,svp_station\n')
+            
+            for pds_file in pds_files:
+                for idx, timestamp in enumerate(pds_file.posix_times):
+                    f.write(f'{pds_file.uid},')
+                    f.write(f'{pds_file.name},')
+                    f.write(f'{pds_file.ftime},')
+                    f.write(f'{timestamp},')
+                    f.write(f'{datetime.fromtimestamp(timestamp, timezone.utc).isoformat()},')
+                    f.write(f'{pds_file.x_coords[idx]},')
+                    f.write(f'{pds_file.y_coords[idx]},')
+                    f.write(f'{pds_file.matched_svps[idx][1]},')
+                    f.write(f'{pds_file.matched_svps[idx][0]},')
+                    f.write(f'{svp_files[pds_file.matched_svps[idx][1]].name},')
+                    f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station}\n')
+                    
+    @staticmethod            
+    def save_matched_track_starts_ends(pds_files, svp_files, path):
+        
+        with open(path, 'w') as f:
+            
+            f.write('uid,fname,ftime,timestamp,isodatetime,x_coord,y_coord,svp_idx,svp_timestamp,svp_name,svp_station\n')
+            
+            for pds_file in pds_files:
+                for idx, timestamp in enumerate(pds_file.posix_times):
+                    if idx == 0:
+                        f.write(f'{pds_file.uid},')
+                        f.write(f'{pds_file.name},')
+                        f.write(f'{pds_file.ftime},')
+                        f.write(f'{timestamp},')
+                        f.write(f'{datetime.fromtimestamp(timestamp, timezone.utc).isoformat()},')
+                        f.write(f'{pds_file.x_coords[idx]},')
+                        f.write(f'{pds_file.y_coords[idx]},')
+                        f.write(f'{pds_file.matched_svps[idx][1]},')
+                        f.write(f'{pds_file.matched_svps[idx][0]},')
+                        f.write(f'{svp_files[pds_file.matched_svps[idx][1]].name},')
+                        f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station}\n')
+                    else:
+                        if pds_file.matched_svps[idx-1][1] == pds_file.matched_svps[idx][1]:
+                            pass
+                        else:
+                            f.write(f'{pds_file.uid},')
+                            f.write(f'{pds_file.name},')
+                            f.write(f'{pds_file.ftime},')
+                            f.write(f'{timestamp},')
+                            f.write(f'{datetime.fromtimestamp(timestamp, timezone.utc).isoformat()},')
+                            f.write(f'{pds_file.x_coords[idx]},')
+                            f.write(f'{pds_file.y_coords[idx]},')
+                            f.write(f'{pds_file.matched_svps[idx][1]},')
+                            f.write(f'{pds_file.matched_svps[idx][0]},')
+                            f.write(f'{svp_files[pds_file.matched_svps[idx][1]].name},')
+                            f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station}\n')
                     
                     
                     

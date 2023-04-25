@@ -289,62 +289,96 @@ class AssignSvp:
                 file.write('\n')
     
     @staticmethod
-    def save_matched_track(pds_files, svp_files, path):
+    def save_matched_track(pds_files, svp_files, path, stnd_only = False):
         
         with open(path, 'w') as f:
             
-            f.write('uid,fname,ftime,timestamp,isodatetime,x_coord,y_coord,svp_idx,svp_timestamp,svp_name,svp_station\n')
+            f.write('uid,fname,tsmp,datetime,x,y,svp_idx,svp_datetime,svp_name,svp_station,fname_svpstation\n')
             
             for pds_file in pds_files:
                 for idx, timestamp in enumerate(pds_file.posix_times):
-                    f.write(f'{pds_file.uid},')
-                    f.write(f'{pds_file.name},')
-                    f.write(f'{pds_file.ftime},')
-                    f.write(f'{timestamp},')
-                    f.write(f'{datetime.fromtimestamp(timestamp, timezone.utc).isoformat()},')
-                    f.write(f'{pds_file.x_coords[idx]},')
-                    f.write(f'{pds_file.y_coords[idx]},')
-                    f.write(f'{pds_file.matched_svps[idx][1]},')
-                    f.write(f'{pds_file.matched_svps[idx][0]},')
-                    f.write(f'{svp_files[pds_file.matched_svps[idx][1]].name},')
-                    f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station}\n')
-                    
-    @staticmethod            
-    def save_matched_track_starts_ends(pds_files, svp_files, path):
-        
-        with open(path, 'w') as f:
-            
-            f.write('uid,fname,ftime,timestamp,isodatetime,x_coord,y_coord,svp_idx,svp_timestamp,svp_name,svp_station\n')
-            
-            for pds_file in pds_files:
-                for idx, timestamp in enumerate(pds_file.posix_times):
-                    if idx == 0:
+                    if stnd_only and idx >= 1 and pds_file.matched_svps[idx-1][1] == pds_file.matched_svps[idx][1]:
+                        pass
+                    else:
+                        pds_isodatetime = datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
+                        svp_isodatetime = datetime.fromtimestamp(
+                            svp_files[pds_file.matched_svps[idx][1]].timestamp, timezone.utc
+                            ).isoformat()
+                        
                         f.write(f'{pds_file.uid},')
                         f.write(f'{pds_file.name},')
-                        f.write(f'{pds_file.ftime},')
                         f.write(f'{timestamp},')
-                        f.write(f'{datetime.fromtimestamp(timestamp, timezone.utc).isoformat()},')
+                        f.write(f'{pds_isodatetime},')
                         f.write(f'{pds_file.x_coords[idx]},')
                         f.write(f'{pds_file.y_coords[idx]},')
                         f.write(f'{pds_file.matched_svps[idx][1]},')
-                        f.write(f'{pds_file.matched_svps[idx][0]},')
+                        f.write(f'{svp_isodatetime},')
                         f.write(f'{svp_files[pds_file.matched_svps[idx][1]].name},')
-                        f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station}\n')
-                    else:
-                        if pds_file.matched_svps[idx-1][1] == pds_file.matched_svps[idx][1]:
-                            pass
-                        else:
-                            f.write(f'{pds_file.uid},')
-                            f.write(f'{pds_file.name},')
-                            f.write(f'{pds_file.ftime},')
-                            f.write(f'{timestamp},')
-                            f.write(f'{datetime.fromtimestamp(timestamp, timezone.utc).isoformat()},')
-                            f.write(f'{pds_file.x_coords[idx]},')
-                            f.write(f'{pds_file.y_coords[idx]},')
-                            f.write(f'{pds_file.matched_svps[idx][1]},')
-                            f.write(f'{pds_file.matched_svps[idx][0]},')
-                            f.write(f'{svp_files[pds_file.matched_svps[idx][1]].name},')
-                            f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station}\n')
+                        f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station},')
+                        f.write(f'{pds_file.name}_{svp_files[pds_file.matched_svps[idx][1]].station}\n')
+                        
+    @staticmethod
+    def assign_svp_filesets(spreadsheet, output, header_seq, prefix):
+        # spreadsheet is a csv table
+        # header_seq: uid,fname,svp_station
+        # if header is: uid,fname,datetime,svp_name,svp_station,StatusMBES
+        # the sequence should be: [0,1,3]
+        
+        svp_filesets = {}
+        pds_dict = {}
+        
+        lines = []
+        
+        with open(spreadsheet, 'r') as file:
+            file_content = file.read().splitlines()
+            
+            for line in file_content[1:]:
+                line_content = line.split(',')
+                
+                uid = line_content[header_seq[0]].strip('"')
+                pds_name = line_content[header_seq[1]]
+                svp_name = line_content[header_seq[2]]
+                
+                lines.append([uid,pds_name,svp_name])
+                
+                if pds_name in pds_dict.keys():
+                    pds_dict[pds_name][0].append(uid)
+                    pds_dict[pds_name][1].append(svp_name)
+                else:
+                    pds_dict[pds_name] = [[uid], [svp_name]]
+
+        for pds_file in pds_dict.keys():
+            unique_svp, indices = np.unique(pds_dict[pds_file][1], return_index=True)
+            
+            if len(unique_svp) > 1:
+                fileset_name = f'{prefix}'
+                
+                for idx, uni_svp in zip(indices, unique_svp):
+                    fileset_name += f'_{pds_dict[pds_file][0][idx]}_{uni_svp}'
+                
+                svp_filesets[fileset_name] = [pds_file]
+            else:
+                fileset_name = f'{prefix}_{unique_svp[0]}'
+                
+                if fileset_name in svp_filesets.keys():
+                    svp_filesets[fileset_name].append(pds_file)
+                else:
+                    svp_filesets[fileset_name] = [pds_file]
+        
+        with open(output, 'w') as file:
+            file.write('uid,fname,svp_station,svp_fileset\n')
+            
+            for line_content in lines:
+                uid = line_content[0]
+                fname = line_content[1]
+                svp_name = line_content[2]
+                fs_name = ''
+                
+                for fileset_name in svp_filesets.keys():
+                    if fname in svp_filesets[fileset_name]:
+                        fs_name = fileset_name
+            
+                file.write(f'{uid},{fname},{svp_name},{fs_name}\n')
                     
                     
                     

@@ -338,6 +338,9 @@ class PDSFileset(Fileset):
         return size
 
     def get_filenames(self):
+        """
+        Получить список файлов в файлсете
+        """
         filenames_list = []
 
         for file in self._files:

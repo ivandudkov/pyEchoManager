@@ -58,7 +58,7 @@ class AssignSvp:
     def read_svpmeta(self, path_svpmeta):
         # SVP meta file has to be a CSV file
         # with a header:
-        # UID,SN_Type,Name,Datetime,StationName,X,Y
+        # UID,SN_Type,Name,Datetime,StationName,X,Y,lat,lon
         # where UID - ordered number, SN_Type - SVP probe serial number / name,
         # Name - SVP file name, Datetime - datetime in 'YYYY-MM-DDTHH:MM:SS' format,
         # X and Y - cartesian coordinates
@@ -70,11 +70,13 @@ class AssignSvp:
             
             for line in file_content[1:]:
                 line_content = line.split(',')
+                datetime_svp = datetime.strptime(line_content[3],'%Y-%m-%dT%H:%M:%S')
+                ts = datetime_svp.replace(tzinfo=timezone.utc).timestamp()
                 
                 svp_obj = SVProfileMeta(uid=int(line_content[0]),
                                         sn_type=line_content[1],
                                         name=line_content[2],
-                                        timestamp=datetime.strptime(line_content[3],'%Y-%m-%dT%H:%M:%S').timestamp(),
+                                        timestamp=ts,
                                         station=line_content[4],
                                         X=float(line_content[5]),
                                         Y=float(line_content[6]),
@@ -203,11 +205,21 @@ class AssignSvp:
     def create_arrays(self):
         
         # declare weighting matrices
-        time_weight = np.array([[10*60, 20*60, 30*60, 40*60, 50*60, 60*60, 120*60, 240*60, 360*60, 480*60],[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
-        # dist_weight = np.array([[1000, 1500, 2000, 3000, 4000, 5000, 10000, 15000, 20000, 40000],[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
-        # v2
-        dist_weight = np.array([[500, 1000, 1500, 3000, 4000, 5000, 10000, 15000, 20000, 40000],[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
+        # time_weight = np.array([[10*60, 20*60, 30*60, 40*60, 50*60, 60*60, 120*60, 240*60, 360*60, 480*60],[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
+        # dist_weight = np.array([[1500, 2000, 3000, 4000, 5000, 6000, 10000, 15000, 20000, 40000],[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
+
+        # Good_v1
+        dist_weight = np.array([[5000, 6000, 7000, 8000, 9000, 9500, 10000, 15000, 20000, 40000],[0.7, 0.6, 0.5, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
+        time_weight = np.array([[60*60, 120*60, 180*60, 240*60, 300*60, 360*60, 480*60, 600*60, 800*60, 1200*60],[0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9, 0.95, 1]]).T
+        # Better than good v2
+        # dist_weight = np.array([[5000, 6000, 7000, 8000, 9000, 9500, 10000, 15000, 20000, 40000],[0.7, 0.6, 0.55, 0.6, 0.65, 0.68, 0.7, 0.8, 0.9, 1]]).T
+        # time_weight = np.array([[60*60, 120*60, 180*60, 240*60, 300*60, 360*60, 480*60, 600*60, 800*60, 1200*60],[0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9, 0.95, 1]]).T
         
+        # V3
+        # dist_weight = np.array([[5000, 6000, 7000, 8000, 9000, 9500, 10000, 11000, 12000, 14000],[0.7, 0.6, 0.5, 0.5, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
+        # time_weight = np.array([[60*60, 120*60, 180*60, 240*60, 300*60, 360*60, 480*60, 600*60, 800*60, 1200*60],[0.1, 0.2, 0.3, 0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.3]]).T
+
+
         def apply_weights(delta_array, weight_array):
             delta_array = delta_array
             
@@ -219,7 +231,7 @@ class AssignSvp:
                     mask = (weight_array[idx,0] < delta_array[:])
                     delta_array = np.where(mask, delta_array*weight_array[idx,1], delta_array)
                 else:
-                    mask = (weight_array[idx,0] < delta_array[:]) & (weight_array[idx,0] > delta_array[:])
+                    mask = (weight_array[idx-1,0] < delta_array[:]) & (weight_array[idx,0] > delta_array[:])
                     delta_array = np.where(mask, delta_array*weight_array[idx,1], delta_array)
             return delta_array
         
@@ -241,6 +253,7 @@ class AssignSvp:
                 dist_delta[:,index] = np.sqrt((self.svp_array[:,1] - x)**2 + (self.svp_array[:,2] - y)**2)
                 dist_delta[:,index] = apply_weights(dist_delta[:,index], dist_weight)
                 val_array[:, index] = dist_delta[:,index]/np.linalg.norm(dist_delta[:,index]) + time_delta[:]/np.linalg.norm(time_delta[:])
+                # val_array[:, index] = dist_delta[:,index] + time_delta[:]
                 bestmatch_svp = np.argmin(val_array[:, index])
                 pds_obj.matched_svps.append((timestamp, bestmatch_svp))
                 
@@ -293,7 +306,7 @@ class AssignSvp:
         
         with open(path, 'w') as f:
             
-            f.write('uid,fname,tsmp,datetime,x,y,svp_idx,svp_datetime,svp_name,svp_station,fname_svpstation\n')
+            f.write('uid,fname,tsmp,datetime,x,y,svp_station,fname_svpstation\n')
             
             for pds_file in pds_files:
                 for idx, timestamp in enumerate(pds_file.posix_times):
@@ -311,18 +324,15 @@ class AssignSvp:
                         f.write(f'{pds_isodatetime},')
                         f.write(f'{pds_file.x_coords[idx]},')
                         f.write(f'{pds_file.y_coords[idx]},')
-                        f.write(f'{pds_file.matched_svps[idx][1]},')
-                        f.write(f'{svp_isodatetime},')
-                        f.write(f'{svp_files[pds_file.matched_svps[idx][1]].name},')
                         f.write(f'{svp_files[pds_file.matched_svps[idx][1]].station},')
                         f.write(f'{pds_file.name}_{svp_files[pds_file.matched_svps[idx][1]].station}\n')
                         
     @staticmethod
     def assign_svp_filesets(spreadsheet, output, header_seq, prefix):
         # spreadsheet is a csv table
-        # header_seq: uid,fname,svp_station
+        # header_seq: time,fname,svp_station
         # if header is: uid,fname,datetime,svp_name,svp_station,StatusMBES
-        # the sequence should be: [0,1,3]
+        # the sequence should be: [2,1,3]
         
         svp_filesets = {}
         pds_dict = {}
@@ -335,17 +345,19 @@ class AssignSvp:
             for line in file_content[1:]:
                 line_content = line.split(',')
                 
-                uid = line_content[header_seq[0]].strip('"')
+                print(line_content[header_seq[0]])
+                
+                datetime_pds = datetime.fromisoformat(line_content[header_seq[0]]).strftime("%H%M%S")
                 pds_name = line_content[header_seq[1]]
                 svp_name = line_content[header_seq[2]]
                 
-                lines.append([uid,pds_name,svp_name])
+                lines.append([datetime_pds,pds_name,svp_name])
                 
                 if pds_name in pds_dict.keys():
-                    pds_dict[pds_name][0].append(uid)
+                    pds_dict[pds_name][0].append(datetime_pds)
                     pds_dict[pds_name][1].append(svp_name)
                 else:
-                    pds_dict[pds_name] = [[uid], [svp_name]]
+                    pds_dict[pds_name] = [[datetime_pds], [svp_name]]
 
         for pds_file in pds_dict.keys():
             unique_svp, indices = np.unique(pds_dict[pds_file][1], return_index=True)
@@ -366,10 +378,10 @@ class AssignSvp:
                     svp_filesets[fileset_name] = [pds_file]
         
         with open(output, 'w') as file:
-            file.write('uid,fname,svp_station,svp_fileset\n')
+            file.write('datetime,fname,svp_station,svp_fileset\n')
             
             for line_content in lines:
-                uid = line_content[0]
+                datetime_pds = line_content[0]
                 fname = line_content[1]
                 svp_name = line_content[2]
                 fs_name = ''
@@ -378,9 +390,8 @@ class AssignSvp:
                     if fname in svp_filesets[fileset_name]:
                         fs_name = fileset_name
             
-                file.write(f'{uid},{fname},{svp_name},{fs_name}\n')
-                    
-                    
+                file.write(f'{datetime_pds},{fname},{svp_name},{fs_name}\n')
+    
                     
             
         

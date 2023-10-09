@@ -100,3 +100,25 @@ class PDSFileTrack(Filetrack):
                         if ft_obj.fname + ft_obj.fext in fs_obj.linked_pds_files_names:
                             for index, time in enumerate(ft_obj.tr_time):
                                 f.write(f'{ft_obj.project},{fs_name},{ft_obj.fname},{datetime.utcfromtimestamp(time).isoformat()},{ft_obj.projection},{ft_obj.tr_x[index]},{ft_obj.tr_y[index]},{ft_obj.tr_sv[index]},{ft_obj.tr_depth[index]},{ft_obj.tr_heading[index]}\n')
+
+    @staticmethod
+    def create_nadir_depth_profile(ft_obj_list, output_csv_file_path, fs_obj_list=None):
+        with open(output_csv_file_path, 'w') as f:
+            header = f'Datetime,X,Y,NadirDepth\n'
+            f.write(header)
+            if fs_obj_list == None:
+                for ft_obj in ft_obj_list:
+                    for index, time in enumerate(ft_obj.tr_time):
+                        f.write(
+                            f'{datetime.fromtimestamp(time, timezone.utc).isoformat()},'
+                            f'{ft_obj.tr_x[index]},'
+                            f'{ft_obj.tr_y[index]},'
+                            f'{ft_obj.tr_depth[index]}\n'
+                        )
+            else:
+                for fs_obj in fs_obj_list:
+                    fs_name = os.path.splitext(fs_obj.fileset_name)[0]
+                    for ft_obj in ft_obj_list:
+                        if ft_obj.fname + ft_obj.fext in fs_obj.linked_pds_files_names:
+                            for index, time in enumerate(ft_obj.tr_time):
+                                f.write(f'{ft_obj.project},{fs_name},{ft_obj.fname},{datetime.utcfromtimestamp(time).isoformat()},{ft_obj.projection},{ft_obj.tr_x[index]},{ft_obj.tr_y[index]},{ft_obj.tr_sv[index]},{ft_obj.tr_depth[index]},{ft_obj.tr_heading[index]}\n')

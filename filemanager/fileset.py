@@ -56,16 +56,17 @@ class Fileset(metaclass=abc.ABCMeta):
 
 @dataclass
 class File:
-    __slots__ = [
-        'name', 'ext','rel_path', 
-        'abs_path', 'matched', 'existance'
-        ]
+    # __slots__ = [
+    #     'name', 'ext','rel_path', 
+    #     'abs_path', 'matched', 'existance'
+    #     ]
     
     name: str
     ext: str
     rel_path: str
     abs_path: str
     matched: bool
+    svp: str
 
 class PDSFileset(Fileset):
     """A class describes PDS2000 fileset"""
@@ -121,13 +122,14 @@ class PDSFileset(Fileset):
         if verbose:
             print(f"{matched_count} of {len(self.files)} files matched")
 
-    def addfile(self, filename):
+    def addfile(self, filename, svp_name='None'):
         pds_file = File(
                     name=filename,
                     ext=self.extension,
                     rel_path=os.path.join('LogData', filename),
                     abs_path='',
-                    matched=False
+                    matched=False,
+                    svp=svp_name
                 )
 
         self._files = [
@@ -145,43 +147,50 @@ class PDSFileset(Fileset):
         """
         path: path to csv table with filenames
         """
-        filenames = []
+        filenames_svpnames = []
 
         with open(path, 'r') as file:
             content = file.readlines()
 
             header = content[0].splitlines()[0].split(',')
             filename_idx = 0
+            svp_idx = 0
             for field in header:
-                if field == 'Fname':
+                if field == 'Fname' or field == 'fname':
                     break
                 else:
                     filename_idx += 1
+            for field in header:
+                if field == 'svp_station':
+                    break
+                else:
+                    svp_idx += 1
 
             for idx, line in enumerate(content[1:]):
                 line_content = line.splitlines()[0].split(',')
-                filenames.append(line_content[filename_idx])
+                filenames_svpnames.append((line_content[filename_idx], line_content[svp_idx]))
 
 
             if len(self.files) and overwrite:
-                for filename in filenames:
+                for filename, _ in filenames_svpnames:
                     self._files = [
                         item for item in self._files 
                         if item.name != filename]
                     
             elif len(self.files) and not overwrite:
                 for file_obj in self.files:
-                    filenames = [
-                        item for item in filenames 
+                    filenames_svpnames = [
+                        item for item in filenames_svpnames 
                         if item == file_obj.name]
                 
-            for filename in filenames:
+            for filename, svpfile in filenames_svpnames:
                 pds_file = File(
                     name=filename,
                     ext=self.extension,
                     rel_path=os.path.join('LogData', filename),
                     abs_path='',
-                    matched=False
+                    matched=False,
+                    svp=svpfile
                 )
                 self._files.append(pds_file)
 
@@ -318,6 +327,35 @@ class PDSFileset(Fileset):
                     f'File({num}) = {file_obj.rel_path}\n'
                 )
             file.write('\n')
+    
+    def create_svp_filesets(self):
+        
+        svp_fs = []
+        
+        svp_fs_dict = {}
+        
+        for num, file_obj in enumerate(self.files):
+            if not file_obj.svp in svp_fs_dict.keys():
+                sv_fs = PDSFileset()
+                sv_fs._name = self.name + '_' + file_obj.svp
+                sv_fs._files.append(file_obj)
+                svp_fs_dict[file_obj.svp] = sv_fs
+            else:
+                svp_fs_dict[file_obj.svp]._files.append(file_obj)
+        
+        
+        for key in svp_fs_dict.keys():
+            svp_fs.append(svp_fs_dict[key])
+        
+        return svp_fs
+    
+    def savesvpfileset(self, dirpath=os.getcwd()):
+        with open(os.path.join(dirpath, self.name + '.sub'), 'w') as file:
+            file.write('[Files]\n')
+            for num, file_obj in enumerate(self.files):
+                file.write(
+                    f'File({num}) = {file_obj.rel_path}\n'
+                )
 
     def savefileset_ascsv(self, filename, dirpath=os.getcwd()) -> None:
         with open(os.path.join(dirpath, filename), 'w') as file:

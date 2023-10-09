@@ -63,3 +63,19 @@ def file_ext_search(extension: str, path=os.getcwd(), search_up=False, recursive
         raise RuntimeError(f'Searching was unsuccessful. There are no {extension} files in {path} folder')
     
     return paths
+
+
+def select_file(selection_list):
+    """Selection list should contain paths"""
+    for num, item in enumerate(selection_list):
+        item_name = os.path.basename(item)
+        print(f'{num} {item_name}')
+    print()
+    
+    print("Please, select track table")
+    selected_item = int(input())
+
+    item = selection_list[selected_item]
+    print(f'Selected file: {selected_item} {item}')
+    
+    return item

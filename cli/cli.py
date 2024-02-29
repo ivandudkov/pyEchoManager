@@ -1,6 +1,6 @@
 import os
 
-import click
+
 from filemanager import file_ext_search as fes
 
 def search(path, ext):

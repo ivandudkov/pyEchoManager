@@ -43,27 +43,30 @@ def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=Fal
 
                 try:
                     
+                    if int(line_content[3]) != year:
+                        raise RuntimeError('BadYear')
+                    
+                    elif int(int(line_content[4])) > 370 and int(line_content[4]) < 0:
+                        raise RuntimeError('BadDay')
+                    
+                    elif int(int(line_content[4])) > 24 and int(line_content[5]) < 0:
+                        raise RuntimeError('BadHour')
+                    
+                    elif int(int(line_content[4])) > 60 and int(line_content[6]) < 0:
+                        raise RuntimeError('BadMin')
+                    
+                    elif int(int(line_content[4])) > 60 and int(line_content[7]) < 0:
+                        raise RuntimeError('BadSec')
+                    
                     if utm_coords:
-                        if int(line_content[3]) != year:
-                            raise RuntimeError('BadYear')
-                        
-                        elif int(int(line_content[4])) > 370 and int(line_content[4]) < 0:
-                            raise RuntimeError('BadDay')
-                        
-                        elif float(line_content[1]) < 50000 and float(line_content[1]) > 500000:
+                        if float(line_content[1]) < 50000 and float(line_content[1]) > 500000:
                             raise RuntimeError('BadCDP_X')
                         
                         elif float(line_content[2]) < 200000 and float(line_content[2]) > 8000000:
                             raise RuntimeError('BadCDP_Y')
 
                     else:
-                        if int(line_content[3]) != year:
-                            raise RuntimeError('BadYear')
-                        
-                        elif int(int(line_content[4])) > 370 and int(line_content[4]) < 0:
-                            raise RuntimeError('BadDay')
-                        
-                        elif float(line_content[1]) < 15.0 and float(line_content[1]) > 50.0:
+                        if float(line_content[1]) < 15.0 and float(line_content[1]) > 50.0:
                             raise RuntimeError('BadCDP_X')
                         
                         elif float(line_content[2]) < 30.0 and float(line_content[2]) > 70.0:

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, time, date
+from datetime import datetime, time, date, timezone, timedelta
 from filemanager import file_ext_search as fes
 from dataclasses import dataclass, field
 import numpy as np
@@ -191,3 +191,44 @@ def save_track_to_radex(pos_objs):
             file3.write(f'TraceNo\tCDPX\tCDPY\n')
             for num, cdp_x in enumerate(pos_obj.cdp_x_cartesian_smoothed):
                 file3.write(f'{pos_obj.traceno[num]}\t{pos_obj.cdp_x_cartesian_smoothed[num]}\t{pos_obj.cdp_y_cartesian_smoothed[num]}\n')
+                
+
+def proc_track_from_pds(trackfile_paths, delimiter=','):
+    delimeter = delimiter
+
+    yearday_dict = {}
+
+    for trackfile in trackfile_paths:
+        with open(trackfile, 'r') as f1:
+            file_content = f1.read().splitlines()
+            
+            for line in file_content:
+                line_content = line.split(delimeter)
+                
+                posix_time = float(line_content[0])
+                datetime_pds = line_content[1]
+                x_coord = float(line_content[2])
+                y_coord = float(line_content[3])
+                
+                datetime_conv = datetime.fromtimestamp(posix_time, tz=timezone.utc)
+                
+                year_day = datetime_conv.strftime('%Y_%j')
+                        
+                if year_day in yearday_dict.keys():
+                    pass
+                else:
+                    yearday_dict[year_day] = []
+                
+                file_string = f'{posix_time:.05f} {x_coord:.04f} {y_coord:.04f} '+ datetime_conv.strftime('%Y %m %d %j %H %M %S %f')
+                yearday_dict[year_day].append(file_string)
+                
+    for key_yearday in yearday_dict.keys():
+        trackfile_yearday = os.path.splitext(trackfile)[0] + '_' + key_yearday + '.txt'
+        
+        with open(trackfile_yearday, 'w') as f2:
+            f2.write('posix_timestamp x y year day month yearday hour minute second microsecond\n')
+            
+            yearday_dict[key_yearday].sort()
+            for line in yearday_dict[key_yearday]:
+                f2.write(f'{line}\n')
+

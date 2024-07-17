@@ -193,7 +193,7 @@ def save_track_to_radex(pos_objs):
                 file3.write(f'{pos_obj.traceno[num]}\t{pos_obj.cdp_x_cartesian_smoothed[num]}\t{pos_obj.cdp_y_cartesian_smoothed[num]}\n')
                 
 
-def proc_track_from_pds(trackfile_paths, delimiter=','):
+def proc_track_from_pds(trackfile_paths, save_to, cruisename, delimiter=','):
     delimeter = delimiter
 
     yearday_dict = {}
@@ -223,7 +223,7 @@ def proc_track_from_pds(trackfile_paths, delimiter=','):
                 yearday_dict[year_day].append(file_string)
                 
     for key_yearday in yearday_dict.keys():
-        trackfile_yearday = os.path.splitext(trackfile)[0] + '_' + key_yearday + '.txt'
+        trackfile_yearday = os.path.join(save_to, cruisename + '_' + key_yearday + '.txt')
         
         with open(trackfile_yearday, 'w') as f2:
             f2.write('posix_timestamp x y year day month yearday hour minute second microsecond\n')

@@ -59,7 +59,7 @@ def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=Fal
                         raise RuntimeError('BadSec')
                     
                     if utm_coords:
-                        if float(line_content[1]) < 50000 and float(line_content[1]) > 500000:
+                        if float(line_content[1]) < 50000 and float(line_content[1]) > 700000:
                             raise RuntimeError('BadCDP_X')
                         
                         elif float(line_content[2]) < 200000 and float(line_content[2]) > 8000000:

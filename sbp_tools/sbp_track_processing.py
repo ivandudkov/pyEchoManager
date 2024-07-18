@@ -155,7 +155,7 @@ def process_track(pos_objs, transformer, window_length=201, smooth=True, utm_coo
             segy_pos_obj.cdp_x_cartesian_smoothed = cartesian_x.tolist()
             segy_pos_obj.cdp_y_cartesian_smoothed = cartesian_y.tolist()
 
-def save_track(pos_objs, save_to):
+def save_track(pos_objs, save_to, smoothed = False):
     with open(save_to, 'w') as file2:
         file2.write('num_o,num_i,name,datetime,traceno,cdp_x,cdp_y,year,day,hour,minute,second\n')
         num_o = 0
@@ -168,12 +168,18 @@ def save_track(pos_objs, save_to):
             else:
                 name = segy_pos_obj.name
             
-            for num_i,traceno in enumerate(segy_pos_obj.traceno):
-                file2.write(f'{num_o},{num_i},{name},{segy_pos_obj.datetime[num_i]},{segy_pos_obj.traceno[num_i]},{segy_pos_obj.cdp_x_cartesian_smoothed[num_i]},')
-                file2.write(f'{segy_pos_obj.cdp_y_cartesian_smoothed[num_i]},{segy_pos_obj.year[num_i]},{segy_pos_obj.day[num_i]},{segy_pos_obj.hour[num_i]},{segy_pos_obj.minute[num_i]},')
-                file2.write(f'{segy_pos_obj.second[num_i]}\n')
-                num_o += 1
-                
+            if smoothed:
+                for num_i,traceno in enumerate(segy_pos_obj.traceno):
+                    file2.write(f'{num_o},{num_i},{name},{segy_pos_obj.datetime[num_i]},{segy_pos_obj.traceno[num_i]},{segy_pos_obj.cdp_x_cartesian_smoothed[num_i]},')
+                    file2.write(f'{segy_pos_obj.cdp_y_cartesian_smoothed[num_i]},{segy_pos_obj.year[num_i]},{segy_pos_obj.day[num_i]},{segy_pos_obj.hour[num_i]},{segy_pos_obj.minute[num_i]},')
+                    file2.write(f'{segy_pos_obj.second[num_i]}\n')
+                    num_o += 1
+            else:
+                for num_i,traceno in enumerate(segy_pos_obj.traceno):
+                    file2.write(f'{num_o},{num_i},{name},{segy_pos_obj.datetime[num_i]},{segy_pos_obj.traceno[num_i]},{segy_pos_obj.cdp_x[num_i]},')
+                    file2.write(f'{segy_pos_obj.cdp_y[num_i]},{segy_pos_obj.year[num_i]},{segy_pos_obj.day[num_i]},{segy_pos_obj.hour[num_i]},{segy_pos_obj.minute[num_i]},')
+                    file2.write(f'{segy_pos_obj.second[num_i]}\n')
+                    num_o += 1
             num_f += 1
             print(f'File {segy_pos_obj.name} is done {num_f} of {len(pos_objs)}')
             

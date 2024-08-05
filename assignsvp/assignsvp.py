@@ -249,14 +249,19 @@ class AssignSvp:
             
             for index, (timestamp, x, y) in enumerate(zip(pds_obj.posix_times,pds_obj.x_coords, pds_obj.y_coords)):
                 time_delta = np.abs(self.svp_array[:,0] - timestamp)
-                time_delta = apply_weights(time_delta, time_weight)
-                dist_delta[:,index] = np.sqrt((self.svp_array[:,1] - x)**2 + (self.svp_array[:,2] - y)**2)
-                dist_delta[:,index] = apply_weights(dist_delta[:,index], dist_weight)
-                val_array[:, index] = dist_delta[:,index]/np.linalg.norm(dist_delta[:,index]) + time_delta[:]/np.linalg.norm(time_delta[:])
-                # val_array[:, index] = dist_delta[:,index] + time_delta[:]
+                
+                if np.min(time_delta) < 60*60*12:
+                    val_array[:, index] = time_delta[:]
+                else:
+                    
+                    time_delta = apply_weights(time_delta, time_weight)
+                    dist_delta[:,index] = np.sqrt((self.svp_array[:,1] - x)**2 + (self.svp_array[:,2] - y)**2)
+                    dist_delta[:,index] = apply_weights(dist_delta[:,index], dist_weight)
+                    val_array[:, index] = dist_delta[:,index]/np.linalg.norm(dist_delta[:,index]) + time_delta[:]/np.linalg.norm(time_delta[:])
+                
+                         
                 bestmatch_svp = np.argmin(val_array[:, index])
                 pds_obj.matched_svps.append((timestamp, bestmatch_svp))
-                
         
     def pick_bestmatch(self, path):
         # pick bestmatch for entire file

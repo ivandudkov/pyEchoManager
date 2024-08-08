@@ -202,7 +202,7 @@ class AssignSvp:
                         self.pds_files[-1].X.append(float(line_content[4]))
                         self.pds_files[-1].Y.append(float(line_content[5]))
     
-    def create_arrays(self):
+    def create_arrays(self, only_time=False):
         
         # declare weighting matrices
         # time_weight = np.array([[10*60, 20*60, 30*60, 40*60, 50*60, 60*60, 120*60, 240*60, 360*60, 480*60],[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]]).T
@@ -250,15 +250,36 @@ class AssignSvp:
             for index, (timestamp, x, y) in enumerate(zip(pds_obj.posix_times,pds_obj.x_coords, pds_obj.y_coords)):
                 time_delta = np.abs(self.svp_array[:,0] - timestamp)
                 
-                if np.min(time_delta) < 60*60*12:
-                    val_array[:, index] = time_delta[:]
-                else:
-                    
+                
+                def only_time_ar(self, time_delta, time_weight, dist_delta, val_array):
+                    if np.min(time_delta) < 60*60*12:
+                        val_array[:, index] = time_delta[:]
+                    else:
+                        
+                        time_delta = apply_weights(time_delta, time_weight)
+                        dist_delta[:,index] = np.sqrt((self.svp_array[:,1] - x)**2 + (self.svp_array[:,2] - y)**2)
+                        dist_delta[:,index] = apply_weights(dist_delta[:,index], dist_weight)
+                        val_array[:, index] = dist_delta[:,index]/np.linalg.norm(dist_delta[:,index]) + time_delta[:]/np.linalg.norm(time_delta[:])
+                        
+                def time_and_dist(self, time_delta, time_weight, dist_delta, val_array):
                     time_delta = apply_weights(time_delta, time_weight)
                     dist_delta[:,index] = np.sqrt((self.svp_array[:,1] - x)**2 + (self.svp_array[:,2] - y)**2)
                     dist_delta[:,index] = apply_weights(dist_delta[:,index], dist_weight)
                     val_array[:, index] = dist_delta[:,index]/np.linalg.norm(dist_delta[:,index]) + time_delta[:]/np.linalg.norm(time_delta[:])
                 
+                # if np.min(time_delta) < 60*60*12:
+                #     val_array[:, index] = time_delta[:]
+                # else:
+                    
+                #     time_delta = apply_weights(time_delta, time_weight)
+                #     dist_delta[:,index] = np.sqrt((self.svp_array[:,1] - x)**2 + (self.svp_array[:,2] - y)**2)
+                #     dist_delta[:,index] = apply_weights(dist_delta[:,index], dist_weight)
+                #     val_array[:, index] = dist_delta[:,index]/np.linalg.norm(dist_delta[:,index]) + time_delta[:]/np.linalg.norm(time_delta[:])
+                
+                if only_time:
+                    only_time_ar(self, time_delta, time_weight, dist_delta, val_array)
+                else:
+                    time_and_dist(self, time_delta, time_weight, dist_delta, val_array)
                          
                 bestmatch_svp = np.argmin(val_array[:, index])
                 pds_obj.matched_svps.append((timestamp, bestmatch_svp))

@@ -15,7 +15,7 @@ class SegyFile:
     path: str
     
     
-def read_sbplog(path, fname_idx, fs_idx, sep=',', encoding='utf-8'):
+def read_sbplog(path, fname_idx, fs_idx, sep=',', encoding='utf-8', if_acf = False):
     sbp_files = []
     
     with open(path, 'r', encoding=encoding) as f1:
@@ -27,8 +27,11 @@ def read_sbplog(path, fname_idx, fs_idx, sep=',', encoding='utf-8'):
             if idx == 0:
                 pass
             else:
-                fname = (line_content[fname_idx] + '.sgy').replace("\"", "")
-                
+                if if_acf:
+                    fname = (line_content[fname_idx]).replace("\"", "")
+                else:
+                    fname = (line_content[fname_idx] + '.sgy').replace("\"", "")
+                    
                 fileset = line_content[fs_idx]
                 if fileset == '':
                     fileset = 'None'
@@ -46,7 +49,7 @@ def upd_segy_path(sgy_objs, pathlist):
                 sgy_obj.path = path
                 
 
-def sort_files_by_fset(sgy_objs, path_sort_to):
+def sort_files_by_fset(sgy_objs, path_sort_to, is_acf = False):
     dirlist = [direct.path for direct in os.scandir(path_sort_to) if os.DirEntry.is_dir(direct)]
     
     for obj in sgy_objs:
@@ -62,6 +65,10 @@ def sort_files_by_fset(sgy_objs, path_sort_to):
             
             if fset_dir in dirlist:
                 shutil.move(obj.path, fset_dir)
+                
+                if is_acf:
+                    shutil.move(obj.path + '.idx', fset_dir)
+                
                 obj.path = os.path.join(fset_dir, os.path.basename(obj.path))
                 
             else:
@@ -69,6 +76,10 @@ def sort_files_by_fset(sgy_objs, path_sort_to):
                 dirlist.append(fset_dir)
 
                 shutil.move(obj.path, fset_dir)
+                
+                if is_acf:
+                    shutil.move(os.path.join(obj.path, '.idx'), fset_dir)
+                    
                 obj.path = os.path.join(fset_dir, os.path.basename(obj.path))
                 
 def sort_p70_segy_by_yearday(sgy_files, path_sort_to):

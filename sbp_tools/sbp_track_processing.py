@@ -26,7 +26,7 @@ class SegyPosFile:
     second: list = field(default_factory=list)
     
 
-def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=False):
+def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=False, arcsecs=False, coord_scale=1, year_check=False):
     for pos_file in pos_files:
         segy_name = os.path.splitext(os.path.basename(pos_file))[0]
         pos_obj = SegyPosFile(name=segy_name, path=pos_file)
@@ -42,11 +42,11 @@ def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=Fal
                 line_content = line.split()
 
                 try:
+                    if year_check:           
+                        if int(line_content[3]) != year:
+                            raise RuntimeError('BadYear')
                     
-                    if int(line_content[3]) != year:
-                        raise RuntimeError('BadYear')
-                    
-                    elif int(int(line_content[4])) > 370 and int(line_content[4]) < 0:
+                    if int(int(line_content[4])) > 370 and int(line_content[4]) < 0:
                         raise RuntimeError('BadDay')
                     
                     elif int(int(line_content[4])) > 24 and int(line_content[5]) < 0:
@@ -58,18 +58,30 @@ def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=Fal
                     elif int(int(line_content[4])) > 60 and int(line_content[7]) < 0:
                         raise RuntimeError('BadSec')
                     
+                    if arcsecs:
+                        x = float(line_content[1])/3600/coord_scale
+                        y = float(line_content[2])/3600/coord_scale
+                    
+                    elif utm_coords:
+                        x = float(line_content[1])
+                        y = float(line_content[2])
+                    
+                    else:
+                        x = float(line_content[1])/3600/coord_scale
+                        y = float(line_content[2])/3600/coord_scale
+                    
                     if utm_coords:
-                        if float(line_content[1]) < 50000 and float(line_content[1]) > 700000:
+                        if x < 50000 and x > 700000:
                             raise RuntimeError('BadCDP_X')
                         
-                        elif float(line_content[2]) < 200000 and float(line_content[2]) > 8000000:
+                        elif y < 200000 and y > 8000000:
                             raise RuntimeError('BadCDP_Y')
 
                     else:
-                        if float(line_content[1]) < 15.0 and float(line_content[1]) > 50.0:
+                        if x < 15.0 and x > 50.0:
                             raise RuntimeError('BadCDP_X')
                         
-                        elif float(line_content[2]) < 30.0 and float(line_content[2]) > 70.0:
+                        elif y < 30.0 and y > 70.0:
                             raise RuntimeError('BadCDP_Y')
                     
                     ar = time(hour=int(line_content[5]),
@@ -84,8 +96,8 @@ def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=Fal
                 else:
                     pos_obj.datetime.append(f'{line_content[3]}-{line_content[4]}T{line_content[5]}:{line_content[6]}:{line_content[7]}')
                     pos_obj.traceno.append(int(line_content[0]))
-                    pos_obj.cdp_x.append(float(line_content[1]))
-                    pos_obj.cdp_y.append(float(line_content[2]))
+                    pos_obj.cdp_x.append(x)
+                    pos_obj.cdp_y.append(y)
                     pos_obj.year.append(int(line_content[3]))
                     pos_obj.day.append(int(line_content[4]))
                     pos_obj.hour.append(int(line_content[5]))

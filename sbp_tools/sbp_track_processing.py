@@ -67,22 +67,22 @@ def read_segypos(pos_files, finedict, baddict, posobj_list, year, utm_coords=Fal
                         y = float(line_content[2])
                     
                     else:
-                        x = float(line_content[1])/3600/coord_scale
-                        y = float(line_content[2])/3600/coord_scale
+                        x = float(line_content[1])/coord_scale
+                        y = float(line_content[2])/coord_scale
                     
-                    if utm_coords:
-                        if x < 50000 and x > 700000:
-                            raise RuntimeError('BadCDP_X')
+                    # if utm_coords:
+                    #     if x < 50000 and x > 700000:
+                    #         raise RuntimeError('BadCDP_X')
                         
-                        elif y < 200000 and y > 8000000:
-                            raise RuntimeError('BadCDP_Y')
+                    #     elif y < 200000 and y > 8000000:
+                    #         raise RuntimeError('BadCDP_Y')
 
-                    else:
-                        if x < 15.0 and x > 50.0:
-                            raise RuntimeError('BadCDP_X')
+                    # else:
+                    #     if x < 15.0 and x > 50.0:
+                    #         raise RuntimeError('BadCDP_X')
                         
-                        elif y < 30.0 and y > 70.0:
-                            raise RuntimeError('BadCDP_Y')
+                    #     elif y < 30.0 and y > 70.0:
+                    #         raise RuntimeError('BadCDP_Y')
                     
                     ar = time(hour=int(line_content[5]),
                             minute=int(line_content[6]), second=int(line_content[7]))
